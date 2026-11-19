@@ -87,21 +87,25 @@
         #define magma_zrocblas_complex          rocblas_double_complex
         #define magma_zsolver_batch_svd_bufsize(...)
         #define magma_zsolver_gesvd             rocsolver_zgesvd
+        #define magma_zsolver_batch_svdj        rocsolver_zgesvdj_batched
     #elif defined(PRECISION_c)
         #define magma_csolver_batch_svd         rocsolver_cgesvd_batched
         #define magma_crocblas_complex          rocblas_float_complex
         #define magma_csolver_batch_svd_bufsize(...)
         #define magma_csolver_gesvd             rocsolver_cgesvd
+        #define magma_csolver_batch_svdj        rocsolver_cgesvdj_batched
     #elif defined(PRECISION_d)
         #define magma_dsolver_batch_svd         rocsolver_dgesvd_batched
         #define magma_drocblas_complex          double
         #define magma_dsolver_batch_svd_bufsize(...)
         #define magma_dsolver_gesvd             rocsolver_dgesvd
+        #define magma_dsolver_batch_svdj        rocsolver_dgesvdj_batched
     #elif defined(PRECISION_s)
         #define magma_ssolver_batch_svd         rocsolver_sgesvd_batched
         #define magma_srocblas_complex          float
         #define magma_ssolver_batch_svd_bufsize(...)
         #define magma_ssolver_gesvd             rocsolver_sgesvd
+        #define magma_ssolver_batch_svdj        rocsolver_sgesvdj_batched
     #endif
 #endif
 
@@ -484,21 +488,43 @@ int main( int argc, char** argv)
                 gpu_time = magma_sync_wtime( opts.queue ) - gpu_time;
             }
             else if(opts.version == 2) {
-                gpu_time = magma_sync_wtime( opts.queue );
                 #ifdef MAGMA_HAVE_CUDA
+                gpu_time = magma_sync_wtime( opts.queue );
                 magma_zsolver_batch_svd( cusolverH, jobz, M, N,
                                          dA, ldda, dS, dU, lddu, dV, lddv,
                                          cusolver_work, cusolver_lwork,
                                          dinfo_array, gesvdj_params, batchCount);
+                gpu_time = magma_sync_wtime( opts.queue ) - gpu_time;
                 #else
+                #if 0
+                gpu_time = magma_sync_wtime( opts.queue );
                 magma_zsolver_batch_svd( rocblasH, rocblas_jobu, rocblas_jobv, M, N,
                                          (magma_zrocblas_complex *const *)dA_array, ldda, dS, min_mn,
                                          (magma_zrocblas_complex *)dU, lddu, lddu*N,
                                          (magma_zrocblas_complex *)dV, lddv, lddv*N,
                                          rocblas_e, min_mn,
                                          rocblas_outofplace, dinfo_array, batchCount);
-                #endif
                 gpu_time = magma_sync_wtime( opts.queue ) - gpu_time;
+                #else
+                double* residual;
+                int* nsweeps;
+                magma_dmalloc(&residual, batchCount);
+                magma_imalloc(&nsweeps, batchCount);
+                double tolerance = 10 * lapackf77_dlamch("E");
+
+                gpu_time = magma_sync_wtime( opts.queue );
+                magma_zsolver_batch_svdj( rocblasH, rocblas_jobu, rocblas_jobv, M, N,
+                                          (magma_zrocblas_complex *const *)dA_array, ldda, tolerance, residual, 100, nsweeps, dS, min_mn,
+                                          (magma_zrocblas_complex *)dU, lddu, lddu*N,
+                                          (magma_zrocblas_complex *)dV, lddv, lddv*N,
+                                          dinfo_array, batchCount);
+                gpu_time = magma_sync_wtime( opts.queue ) - gpu_time;
+
+                magma_free(residual);
+                magma_free(nsweeps);
+                #endif
+                #endif
+
             }
             else if( opts.version == 3) {
                 gpu_time = magma_sync_wtime( opts.queue );

@@ -349,6 +349,9 @@ libmagma_src += \
 	$(cdir)/zgetrf_panel_native.cpp		\
 	$(cdir)/zpotrf_panel_native.cpp		\
 
+libmagma_src += \
+	$(cdir)/lapack_zbatched.cpp		\
+
 # additional dependencies
 $(cdir)/spotrf_batched.$(o_ext): control/batched_kernel_param.h
 $(cdir)/dpotrf_batched.$(o_ext): control/batched_kernel_param.h

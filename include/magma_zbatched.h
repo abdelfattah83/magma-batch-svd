@@ -1427,6 +1427,19 @@ magma_zpotrf_lpin_batched(
 
 // host interface
 void
+lapack_zheevd_batched(
+    magma_vec_t jobz, magma_uplo_t uplo,
+    magma_int_t n,
+    magmaDoubleComplex **hA_array, magma_int_t lda,
+    double             **hw_array,
+    magmaDoubleComplex **hwork_array, magma_int_t* lwork,
+    #ifdef MAGMA_COMPLEX
+    double **rwork_array, magma_int_t* lrwork,
+    #endif
+    magma_int_t **iwork_array, magma_int_t* liwork,
+    magma_int_t *info_array, magma_int_t batchCount );
+
+void
 blas_zlacpy_batched(
     magma_uplo_t uplo, magma_int_t m, magma_int_t n,
     magmaDoubleComplex const * const * hA_array, magma_int_t lda,

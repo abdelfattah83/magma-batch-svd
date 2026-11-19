@@ -220,6 +220,7 @@ testing_src += \
 	\
 	$(cdir)/testing_zgesvj_batched.cpp	\
 	$(cdir)/testing_zgesvj_batched_v2.cpp	\
+	$(cdir)/testing_zheevj_batched.cpp	\
 
 # ----------
 # vbatched BLAS, QR, LU, Cholesky
