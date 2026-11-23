@@ -1,0 +1,127 @@
+#//////////////////////////////////////////////////////////////////////////////
+#   -- MAGMA (version 2.0) --
+#      Univ. of Tennessee, Knoxville
+#      Univ. of California, Berkeley
+#      Univ. of Colorado, Denver
+#      @date
+#//////////////////////////////////////////////////////////////////////////////
+
+
+
+# --------------------
+# configuration
+
+# should MAGMA be built on CUDA (NVIDIA only) or ROCM (AMD or NVIDIA)
+# enter 'cuda' or 'hip' respectively
+BACKEND     ?= cuda
+
+# set these to their real paths
+NVPLDIR=/home/users/ahmad/nvpl/var/nvpl-local-repo-rhel9-24.03/usr
+CUDADIR=${CUDAROOT}
+ROCM_PATH   ?= /opt/rocm
+
+# require either hip or cuda
+ifeq (,$(findstring $(BACKEND),hip cuda))
+    $(error "'BACKEND' should be either 'cuda' or 'hip' (got $(BACKEND))")
+endif
+
+# --------------------
+# programs
+
+# set compilers
+CC          ?= gcc
+CXX         ?= g++
+FORT        ?= gfortran
+HIPCC       ?= hipcc
+NVCC        ?= nvcc
+DEVCC       ?= NONE
+
+# set from 'BACKEND'
+ifeq ($(BACKEND),cuda)
+    DEVCC = $(NVCC)
+else ifeq ($(BACKEND),hip)
+    DEVCC = $(HIPCC)
+endif
+
+# and utilities
+ARCH      = ar
+ARCHFLAGS = cr
+RANLIB    = ranlib
+
+
+# --------------------
+# flags/settings
+
+# set our GPU targets
+ifeq ($(BACKEND),cuda)
+    GPU_TARGET = Hopper
+#GPU_TARGET = sm_75 sm_80 sm_86 sm_87 sm_89 sm_90 sm_90a sm_100 sm_110 sm_120
+else ifeq ($(BACKEND),hip)
+    GPU_TARGET = gfx900 gfx906 gfx908
+endif
+
+# Use -fPIC to make shared (.so) and static (.a) library;
+# can be commented out if making only static library.
+FPIC      = -fPIC
+
+# now, generate our flags
+CFLAGS      = -O3 $(FPIC) -DNDEBUG -DADD_ -Wall -fopenmp -std=c99
+CXXFLAGS    = -O3 $(FPIC) -DNDEBUG -DADD_ -Wall -fopenmp -std=c++11
+FFLAGS      = -O3 $(FPIC) -DNDEBUG -DADD_ -Wall -Wno-unused-dummy-argument
+F90FLAGS    = -O3 $(FPIC) -DNDEBUG -DADD_ -Wall -Wno-unused-dummy-argument -x f95-cpp-input
+LDFLAGS     =     $(FPIC)                       -fopenmp
+
+DEVCCFLAGS  = -O3         -DNDEBUG -DADD_
+
+# DEVCCFLAGS are populated later in `backend-specific`
+DEVCCFLAGS += -Xfatbin -compress-all
+
+# --------------------
+# libraries
+
+# gcc with OpenBLAS (includes LAPACK)
+#LIB       += -lnvpl_blas_core -lnvpl_blas_lp64_gomp -lnvpl_rand_mt -lnvpl_lapack_core -lnvpl_lapack_lp64_gomp 
+LIB       += -lnvpl_blas_lp64_gomp -lnvpl_rand_mt -lnvpl_lapack_lp64_gomp 
+
+# --------------------
+# directories
+
+# define library directories preferably in your environment, or here.
+LIBDIR    += -L$(NVPLDIR)/lib64
+INC       +=
+
+
+# --------------------
+# checks
+
+# check for openblas
+#-include make.check-openblas
+
+
+# --------------------
+# backend-specific
+
+# add appropriate cuda flags
+ifeq ($(BACKEND),cuda)
+#-include make.check-cuda
+
+    DEVCCFLAGS += -Xcompiler "$(FPIC)" -std=c++11
+
+    # link with cuda specific libraries
+    INC    += -I$(CUDADIR)/include
+    LIBDIR += -L$(CUDADIR)/lib64
+    LIB    += -lcublas -lcusparse -lcusolver -lcudart -lcudadevrt
+endif
+
+# add appropriate ROCM flags
+ifeq ($(BACKEND),hip)
+    -include make.check-hip
+
+    DEVCCFLAGS += $(FPIC) -std=c++11
+
+    INC    += -I$(ROCM_PATH)/include
+    LIBDIR += -L$(ROCM_PATH)/lib
+    LIB    += -lhipblas -lhipsparse
+endif
+
+
